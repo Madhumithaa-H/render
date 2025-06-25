@@ -41,7 +41,8 @@ app.use((req, res, next) => {
 const secretkey = crypto.randomBytes(32).toString('hex');
 
 // MongoDB Connection
-mongoose.connect('mongodb+srv://madhu:madhu1308@cluster0.nzkgap9.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0', {
+// MongoDB Connection
+mongoose.connect(process.env.MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 }).then(() => {
