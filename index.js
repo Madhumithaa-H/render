@@ -6,28 +6,25 @@ const jwt = require('jsonwebtoken');
 const http = require('http');
 const socketIO = require('socket.io');
 const cors = require('cors');
+
 const User = require('./models/user');
 const Register = require('./models/register');
 const Drugs = require('./models/Drug');
 
 const app = express();
-const Server = http.createServer(app);
-const io = socketIO(Server, {
+const server = http.createServer(app);
+const io = socketIO(server, {
   cors: {
-    origin: 'http://0.0.0.0/0',
+    origin: '*',
     methods: ['GET', 'POST'],
   },
 });
 
-// Environment
-const port = 1308;
-const socketPort = 8080;
+// Use environment PORT if available (Render needs this)
+const PORT = process.env.PORT || 1308;
 
 // Middleware
-app.use(cors({
-  origin: 'http://0.0.0.0/0',
-  methods: 'GET,POST',
-}));
+app.use(cors({ origin: '*', methods: ['GET', 'POST'] }));
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 
@@ -37,15 +34,11 @@ app.use((req, res, next) => {
   next();
 });
 
-// JWT Secret
+// JWT secret key
 const secretkey = crypto.randomBytes(32).toString('hex');
 
-// MongoDB Connection
-// MongoDB Connection
-mongoose.connect(process.env.MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-}).then(() => {
+// MongoDB connection (from environment variable)
+mongoose.connect(process.env.MONGODB_URI).then(() => {
   console.log('Connected to MongoDB');
 }).catch(err => {
   console.log('MongoDB connection error:', err);
@@ -67,20 +60,17 @@ const authMiddleware = (req, res, next) => {
   }
 };
 
-// Start Servers
-app.listen(port, () => {
-  console.log(`Express server running on port ${port}`);
-});
-Server.listen(socketPort, () => {
-  console.log(`Socket.IO server running on port ${socketPort}`);
+// Start Server
+server.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
 
-// LOGIN (updated to match your DB)
+// === API ROUTES ===
+
+// Login
 app.post('/login', async (req, res) => {
   try {
-    const { UserName, Password } = req.body; // Match exactly with frontend
-
-    // Match database field name: "UserName"
+    const { UserName, Password } = req.body;
     const user = await User.findOne({ UserName });
 
     if (!user || user.Password !== Password) {
