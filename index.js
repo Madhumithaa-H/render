@@ -6,6 +6,8 @@ const jwt = require('jsonwebtoken');
 const http = require('http');
 const socketIO = require('socket.io');
 const cors = require('cors');
+const path = require('path');
+
 const User = require('./models/user');
 const Register = require('./models/register');
 const Drugs = require('./models/Drug');
@@ -19,10 +21,8 @@ const io = socketIO(server, {
   }
 });
 
-// 🔐 Secret Key for JWT
 const secretkey = crypto.randomBytes(32).toString('hex');
 
-// 🌍 Environment
 const PORT = process.env.PORT || 1308;
 const SOCKET_PORT = process.env.SOCKET_PORT || 8080;
 const MONGODB_URI = process.env.MONGODB_URI || 'your_mongodb_uri_here';
@@ -32,12 +32,13 @@ app.use(cors({ origin: '*', methods: 'GET,POST' }));
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 
-// 🩺 Health check (for Render cold start)
-app.get('/ping', (req, res) => {
-  res.send('Server is alive');
-});
+// 🌐 Serve static files
+app.use(express.static(path.join(__dirname, 'public')));
 
-// 🔐 Auth Middleware
+// 🩺 Health check
+app.get('/ping', (req, res) => res.send('Server is alive'));
+
+// 👀 Auth middleware
 const authMiddleware = (req, res, next) => {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -53,12 +54,12 @@ const authMiddleware = (req, res, next) => {
   }
 };
 
-// 🧠 MongoDB Connection
+// 🔌 MongoDB Connection
 mongoose.connect(MONGODB_URI)
   .then(() => console.log('Connected to MongoDB'))
-  .catch(err => console.error('MongoDB connection error:', err));
+  .catch(err => console.error('MongoDB error:', err));
 
-// 📋 Logger
+// 📝 Logger
 app.use((req, res, next) => {
   console.log(`[${req.method}] ${req.path}`);
   next();
@@ -75,23 +76,22 @@ app.post('/login', async (req, res) => {
     const token = jwt.sign({ userId: user._id }, secretkey, { expiresIn: '24h' });
     res.status(200).json({ token });
   } catch (error) {
-    console.error('Login error:', error);
     res.status(500).json({ message: 'Login failed' });
   }
 });
 
-// 👤 Get User Info
+// 👤 Get user
 app.get('/user', authMiddleware, async (req, res) => {
   try {
     const user = await User.findById(req.user.userId);
     if (!user) return res.status(404).json({ message: 'User not found' });
     res.json(user);
   } catch (err) {
-    res.status(500).json({ message: 'Internal Server Error' });
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
-// ➕ Add Patient
+// ➕ Add patient
 app.post('/patients', async (req, res) => {
   try {
     const newPatient = new Register(req.body);
@@ -99,11 +99,11 @@ app.post('/patients', async (req, res) => {
     io.emit('new-patient', newPatient);
     res.status(201).json(newPatient);
   } catch (err) {
-    res.status(500).json({ error: 'Error saving patient details' });
+    res.status(500).json({ error: 'Error saving patient' });
   }
 });
 
-// 📥 Get All Patients for a Doctor
+// 📥 Get patients
 app.get('/patients', async (req, res) => {
   try {
     const doctorID = req.query.doctorID;
@@ -114,11 +114,11 @@ app.get('/patients', async (req, res) => {
   }
 });
 
-// ❌ Delete Patient
+// ❌ Delete patient
 app.delete('/patients/:id', async (req, res) => {
   try {
     const patient = await Register.findByIdAndDelete(req.params.id);
-    if (!patient) return res.status(404).json({ error: 'Patient not found' });
+    if (!patient) return res.status(404).json({ error: 'Not found' });
     io.emit('delete-patient');
     res.sendStatus(204);
   } catch (err) {
@@ -126,7 +126,7 @@ app.delete('/patients/:id', async (req, res) => {
   }
 });
 
-// ✏️ Update Patient
+// ✏️ Update patient
 app.put('/patients/:patientId', async (req, res) => {
   try {
     const updated = await Register.findByIdAndUpdate(
@@ -135,13 +135,13 @@ app.put('/patients/:patientId', async (req, res) => {
       { new: true }
     );
     if (!updated) return res.status(404).json({ message: 'Patient not found' });
-    res.json({ message: 'Patient updated successfully', updatedPatient: updated });
+    res.json({ message: 'Patient updated', updatedPatient: updated });
   } catch (err) {
-    res.status(500).json({ message: 'Failed to update patient' });
+    res.status(500).json({ message: 'Update failed' });
   }
 });
 
-// ➕ Add Drug
+// ➕ Add drug
 app.post('/drugs', async (req, res) => {
   try {
     const newDrug = new Drugs(req.body);
@@ -149,11 +149,11 @@ app.post('/drugs', async (req, res) => {
     io.emit('new-drug', newDrug);
     res.status(201).json(newDrug);
   } catch (err) {
-    res.status(500).json({ error: 'Error saving drug details' });
+    res.status(500).json({ error: 'Error saving drug' });
   }
 });
 
-// 📥 Get All Drugs
+// 📥 Get drugs
 app.get('/drugs', async (req, res) => {
   try {
     const drugs = await Drugs.find();
@@ -163,7 +163,7 @@ app.get('/drugs', async (req, res) => {
   }
 });
 
-// 🔁 Reset Password
+// 🔁 Reset password
 app.post('/reset-password/:doctorID', async (req, res) => {
   try {
     const { newPassword } = req.body;
@@ -173,16 +173,15 @@ app.post('/reset-password/:doctorID', async (req, res) => {
       { new: true }
     );
     if (!updated) return res.status(404).json({ message: 'User not found' });
-    res.json({ message: 'Password reset successful' });
+    res.json({ message: 'Password reset' });
   } catch (err) {
-    res.status(500).json({ message: 'Internal Server Error' });
+    res.status(500).json({ message: 'Error resetting password' });
   }
 });
 
-// ✅ Start Express & Socket Servers
+// ✅ Start servers
 server.listen(PORT, () => {
-  console.log(`Express server running on port ${PORT}`);
+  console.log(`Express server running at http://localhost:${PORT}`);
 });
-
 io.listen(SOCKET_PORT);
 console.log(`Socket.IO server running on port ${SOCKET_PORT}`);
