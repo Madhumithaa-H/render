@@ -6,6 +6,8 @@ const jwt = require('jsonwebtoken');
 const http = require('http');
 const socketIO = require('socket.io');
 const cors = require('cors');
+const path = require('path');
+
 
 const User = require('./models/user');
 const Register = require('./models/register');
