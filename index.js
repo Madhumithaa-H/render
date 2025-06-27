@@ -164,6 +164,9 @@ app.get('/drugs', async (req, res) => {
     res.status(500).json({ error: 'Error retrieving drugs' });
   }
 });
+app.get('/privacy-policy', (req, res) => {
+  res.sendFile(path.join(__dirname, 'privacy-policy.html'));
+});
 
 // Reset password
 app.post('/reset-password/:doctorID', async (req, res) => {
@@ -174,6 +177,35 @@ app.post('/reset-password/:doctorID', async (req, res) => {
     res.json({ message: 'Password reset successful' });
   } catch (error) {
     res.status(500).json({ message: 'Internal Server Error' });
+  }
+});
+// Serve the form
+app.get('/delete-account', (req, res) => {
+  res.sendFile(path.join(__dirname, 'account-delete-form.html'));
+});
+
+// Handle form submission
+app.post('/delete-account-form', async (req, res) => {
+  const { email, confirm } = req.body;
+
+  if (confirm !== 'DELETE') {
+    return res.status(400).send('You must type DELETE to confirm.');
+  }
+
+  try {
+    const user = await User.findOne({ email });
+    if (!user) return res.status(404).send('No user found with that email.');
+
+    // Delete patient records first
+    await Patient.deleteMany({ userId: user._id });
+
+    // Then delete the user account
+    await User.deleteOne({ _id: user._id });
+
+    res.send('Your account and all related data have been permanently deleted.');
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Error deleting account. Please try again later.');
   }
 });
 
